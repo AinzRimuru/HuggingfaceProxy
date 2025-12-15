@@ -5,6 +5,10 @@
 
 A lightweight reverse proxy based on Cloudflare Workers (or Cloudflare Pages Functions) for accessing Hugging Face (`huggingface.co`) and its related CDN resources (`*.hf.co`).
 
+## 📖 About
+
+This project is designed to solve the problem of being unable to directly download models and datasets from Hugging Face in China due to network restrictions. It provides a stable and fast proxy service, allowing you to access Hugging Face resources seamlessly.
+
 ## ✨ Features
 
 *   **Main Site Proxy**: Proxies a specified subdomain (default `hf`) to `huggingface.co`.
@@ -122,6 +126,10 @@ When Hugging Face returns a `302 Found` redirect to a CDN download link, the scr
 # Hugging Face Proxy (Cloudflare Workers)
 
 这是一个基于 Cloudflare Workers (或 Cloudflare Pages Functions) 的轻量级反向代理，用于访问 Hugging Face (`huggingface.co`) 及其相关 CDN 资源 (`*.hf.co`)。
+
+## 📖 关于本项目
+
+本项目主要是用来解决国内无法直接下载 Hugging Face 模型和数据集的问题。通过 Cloudflare Workers 搭建的反向代理，提供稳定快速的访问服务，让你能够无缝获取 Hugging Face 的资源。
 
 ## ✨ 功能特点
 
