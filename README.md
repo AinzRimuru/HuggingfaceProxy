@@ -38,6 +38,8 @@ hf_proxy/
 3. 推送代码到 `main` 分支，GitHub Actions 会自动构建 `_worker.js`
 4. Cloudflare Pages 自动拉取最新代码并部署
 
+部署完成后，Cloudflare 会自动分配一个 `*.pages.dev` 域名，也可以在项目设置中绑定自定义域名。
+
 > **注意**: `_worker.js` 已添加到 `.gitignore`，仅由 GitHub Actions 构建并强制提交。
 
 ### 本地开发
