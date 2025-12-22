@@ -34,6 +34,10 @@ jobs:
       - name: Build _worker.js
         run: npm run build
       
+      # 等待 60 秒，避免连续两次提交导致 Cloudflare Pages 跳过部署
+      - name: Wait for Cloudflare to process previous commit
+        run: sleep 60
+      
       - name: Commit and push _worker.js
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
