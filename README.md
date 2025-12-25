@@ -1,6 +1,7 @@
 # HuggingFace Proxy
 
 🤗 一个简洁高效的 HuggingFace 代理服务，基于 Cloudflare Workers。
+体验地址：https://hf.rimuru.uk
 
 ## ✨ 特性
 
