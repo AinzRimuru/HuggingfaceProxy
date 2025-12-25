@@ -1,6 +1,6 @@
 /**
  * HuggingFace Proxy Worker
- * 构建时间: 2025-12-22T12:55:50.951Z
+ * 构建时间: 2025-12-25T12:46:21.610Z
  * 
  * 此文件由 build.js 自动生成，请勿手动编辑
  * 源代码位于 src/ 目录
@@ -61,6 +61,15 @@ function rewriteLocation(location, proxyOrigin) {
 var home_default = `<!DOCTYPE html>
 <html>
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NLJ5RD4XBL"><\/script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-NLJ5RD4XBL');
+    <\/script>
     <title>HuggingFace Proxy</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
