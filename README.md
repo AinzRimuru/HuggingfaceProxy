@@ -91,6 +91,11 @@ pip install requests tqdm
 python hf_downloader.py bert-base-uncased
 python hf_downloader.py openai/whisper-large-v3 --type model
 python hf_downloader.py bigcode/starcoder --revision main --workers 8
+
+# 网络优化选项
+python hf_downloader.py bert-base-uncased -4   # 强制使用 IPv4
+python hf_downloader.py bert-base-uncased -6   # 强制使用 IPv6
+# 注：脚本会自动检测教育网环境（CERNET），如检测到则默认开启 IPv6 优化，无需手动指定
 ```
 
 ## 🔧 工作原理
