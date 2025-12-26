@@ -15,6 +15,7 @@ Hugging Face 文件下载器
 import argparse
 import os
 import sys
+import socket
 import json
 import hashlib
 import threading
@@ -38,6 +39,42 @@ PROXY_DOMAIN = "{{PROXY_DOMAIN}}"  # 你的代理域名
 MAX_RETRIES = 3                    # 最大重试次数
 CHUNK_SIZE = 64 * 1024 * 1024      # 64MB 每块
 DEFAULT_WORKERS = 4                # 默认并行下载数
+
+
+def check_cernet() -> bool:
+    """检查是否为教育网环境"""
+    try:
+        #设置较短超时，避免阻塞
+        resp = requests.get("http://ip-api.com/json/?fields=isp,org", timeout=3)
+        if resp.ok:
+            data = resp.json()
+            isp = data.get("isp", "").lower()
+            org = data.get("org", "").lower()
+            # 常见的教育网标识
+            cernet_keywords = ["cernet", "education", "university"]
+            if any(k in isp for k in cernet_keywords) or any(k in org for k in cernet_keywords):
+                return True
+    except:
+        pass
+    return False
+
+
+def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
+    """配置 DNS 解析优先级"""
+    if not (force_ipv4 or force_ipv6):
+        return
+        
+    original_getaddrinfo = socket.getaddrinfo
+    
+    def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        # 如果强制指定了协议版本，则覆盖 family 参数
+        if force_ipv4:
+            family = socket.AF_INET
+        elif force_ipv6:
+            family = socket.AF_INET6
+        return original_getaddrinfo(host, port, family, type, proto, flags)
+        
+    socket.getaddrinfo = patched_getaddrinfo
 
 
 @dataclass
@@ -318,8 +355,31 @@ def main():
     parser.add_argument("--token", help="Hugging Face Token (也可设置 HF_TOKEN 环境变量)")
     parser.add_argument("--list-only", "-l", action="store_true",
                         help="仅列出文件，不下载")
+    parser.add_argument("--ipv4", "-4", action="store_true", help="强制使用 IPv4")
+    parser.add_argument("--ipv6", "-6", action="store_true", help="强制使用 IPv6")
     
     args = parser.parse_args()
+
+    # 处理 IP 协议选择
+    if args.ipv4 and args.ipv6:
+        print("❌ 错误: 不能同时指定 -4 和 -6")
+        sys.exit(1)
+        
+    use_ipv6 = args.ipv6
+    use_ipv4 = args.ipv4
+    
+    # 如果未指定，自动检测是否为教育网
+    if not (use_ipv6 or use_ipv4):
+        if check_cernet():
+            print("🎓 检测到教育网环境，自动启用 IPv6 优化")
+            use_ipv6 = True
+            
+    if use_ipv6:
+        print("🌐 已启用强制 IPv6 解析")
+        configure_dns(force_ipv6=True)
+    elif use_ipv4:
+        print("🌐 已启用强制 IPv4 解析")
+        configure_dns(force_ipv4=True)
     
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
