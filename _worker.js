@@ -1,6 +1,6 @@
 /**
  * HuggingFace Proxy Worker
- * 构建时间: 2025-12-25T12:46:21.610Z
+ * 构建时间: 2025-12-26T01:39:55.245Z
  * 
  * 此文件由 build.js 自动生成，请勿手动编辑
  * 源代码位于 src/ 目录
@@ -194,6 +194,7 @@ Hugging Face \u6587\u4EF6\u4E0B\u8F7D\u5668
 import argparse
 import os
 import sys
+import socket
 import json
 import hashlib
 import threading
@@ -217,6 +218,42 @@ PROXY_DOMAIN = "{{PROXY_DOMAIN}}"  # \u4F60\u7684\u4EE3\u7406\u57DF\u540D
 MAX_RETRIES = 3                    # \u6700\u5927\u91CD\u8BD5\u6B21\u6570
 CHUNK_SIZE = 64 * 1024 * 1024      # 64MB \u6BCF\u5757
 DEFAULT_WORKERS = 4                # \u9ED8\u8BA4\u5E76\u884C\u4E0B\u8F7D\u6570
+
+
+def check_cernet() -> bool:
+    """\u68C0\u67E5\u662F\u5426\u4E3A\u6559\u80B2\u7F51\u73AF\u5883"""
+    try:
+        #\u8BBE\u7F6E\u8F83\u77ED\u8D85\u65F6\uFF0C\u907F\u514D\u963B\u585E
+        resp = requests.get("http://ip-api.com/json/?fields=isp,org", timeout=3)
+        if resp.ok:
+            data = resp.json()
+            isp = data.get("isp", "").lower()
+            org = data.get("org", "").lower()
+            # \u5E38\u89C1\u7684\u6559\u80B2\u7F51\u6807\u8BC6
+            cernet_keywords = ["cernet", "education", "university"]
+            if any(k in isp for k in cernet_keywords) or any(k in org for k in cernet_keywords):
+                return True
+    except:
+        pass
+    return False
+
+
+def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
+    """\u914D\u7F6E DNS \u89E3\u6790\u4F18\u5148\u7EA7"""
+    if not (force_ipv4 or force_ipv6):
+        return
+        
+    original_getaddrinfo = socket.getaddrinfo
+    
+    def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        # \u5982\u679C\u5F3A\u5236\u6307\u5B9A\u4E86\u534F\u8BAE\u7248\u672C\uFF0C\u5219\u8986\u76D6 family \u53C2\u6570
+        if force_ipv4:
+            family = socket.AF_INET
+        elif force_ipv6:
+            family = socket.AF_INET6
+        return original_getaddrinfo(host, port, family, type, proto, flags)
+        
+    socket.getaddrinfo = patched_getaddrinfo
 
 
 @dataclass
@@ -497,8 +534,31 @@ def main():
     parser.add_argument("--token", help="Hugging Face Token (\u4E5F\u53EF\u8BBE\u7F6E HF_TOKEN \u73AF\u5883\u53D8\u91CF)")
     parser.add_argument("--list-only", "-l", action="store_true",
                         help="\u4EC5\u5217\u51FA\u6587\u4EF6\uFF0C\u4E0D\u4E0B\u8F7D")
+    parser.add_argument("--ipv4", "-4", action="store_true", help="\u5F3A\u5236\u4F7F\u7528 IPv4")
+    parser.add_argument("--ipv6", "-6", action="store_true", help="\u5F3A\u5236\u4F7F\u7528 IPv6")
     
     args = parser.parse_args()
+
+    # \u5904\u7406 IP \u534F\u8BAE\u9009\u62E9
+    if args.ipv4 and args.ipv6:
+        print("\u274C \u9519\u8BEF: \u4E0D\u80FD\u540C\u65F6\u6307\u5B9A -4 \u548C -6")
+        sys.exit(1)
+        
+    use_ipv6 = args.ipv6
+    use_ipv4 = args.ipv4
+    
+    # \u5982\u679C\u672A\u6307\u5B9A\uFF0C\u81EA\u52A8\u68C0\u6D4B\u662F\u5426\u4E3A\u6559\u80B2\u7F51
+    if not (use_ipv6 or use_ipv4):
+        if check_cernet():
+            print("\u{1F393} \u68C0\u6D4B\u5230\u6559\u80B2\u7F51\u73AF\u5883\uFF0C\u81EA\u52A8\u542F\u7528 IPv6 \u4F18\u5316")
+            use_ipv6 = True
+            
+    if use_ipv6:
+        print("\u{1F310} \u5DF2\u542F\u7528\u5F3A\u5236 IPv6 \u89E3\u6790")
+        configure_dns(force_ipv6=True)
+    elif use_ipv4:
+        print("\u{1F310} \u5DF2\u542F\u7528\u5F3A\u5236 IPv4 \u89E3\u6790")
+        configure_dns(force_ipv4=True)
     
     print(f"""
 \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
