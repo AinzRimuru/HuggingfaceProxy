@@ -1,6 +1,6 @@
 /**
  * HuggingFace Proxy Worker
- * 构建时间: 2025-12-26T01:31:37.834Z
+ * 构建时间: 2025-12-26T15:12:35.862Z
  * 
  * 此文件由 build.js 自动生成，请勿手动编辑
  * 源代码位于 src/ 目录
@@ -134,11 +134,56 @@ var home_default = `<!DOCTYPE html>
             margin-left: 10px;
             vertical-align: middle;
         }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .github-star {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #24292e 0%, #434d56 100%);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .github-star:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            text-decoration: none;
+            background: linear-gradient(135deg, #2d3439 0%, #535d66 100%);
+        }
+        .github-star svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+        .github-star .star-icon {
+            color: #f1c40f;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>\u{1F917} HuggingFace Proxy <span class="badge">v2.0</span></h1>
+        <div class="header-row">
+            <h1>\u{1F917} HuggingFace Proxy <span class="badge">v2.0</span></h1>
+            <a href="https://github.com/AinzRimuru/HuggingfaceProxy" target="_blank" class="github-star">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                <span class="star-icon">\u2B50</span>
+                Star on GitHub
+            </a>
+        </div>
         <p>\u76F4\u63A5\u8BBF\u95EE\u5373\u53EF\uFF0C\u6240\u6709\u8BF7\u6C42\u81EA\u52A8\u8F6C\u53D1\u5230 HuggingFace\u3002</p>
         
         <h3>\u{1F4E6} \u8BBF\u95EE\u6A21\u578B</h3>
