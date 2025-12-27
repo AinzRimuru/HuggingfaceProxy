@@ -134,6 +134,6 @@ export const DEFAULT_UPSTREAM = 'huggingface.co';
 export const REDIRECT_PREFIX = 'redirect_to_';
 ```
 
-## 📄 License
+## Star History
 
-MIT License
+[![Star History Chart](https://api.star-history.com/svg?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left)](https://www.star-history.com/#AinzRimuru/HuggingfaceProxy&type=date&legend=top-left)
