@@ -57,12 +57,12 @@ export function rewriteLocation(location, proxyOrigin) {
     try {
         const locUrl = new URL(location);
         const locHost = locUrl.hostname;
-        
+
         // 检查是否是允许的上游域名
         if (!isAllowedUpstream(locHost)) {
             return null;
         }
-        
+
         // 构造新的重定向 URL
         if (locHost === DEFAULT_UPSTREAM) {
             // 默认上游，直接使用原路径
@@ -75,4 +75,76 @@ export function rewriteLocation(location, proxyOrigin) {
         console.error("Location parse error:", e);
         return null;
     }
+}
+
+/**
+ * 判断请求是否来自浏览器
+ * @param {Request} request - 请求对象
+ * @returns {boolean}
+ */
+export function isBrowserRequest(request) {
+    const accept = request.headers.get('Accept') || '';
+    const userAgent = request.headers.get('User-Agent') || '';
+
+    // 检查 Accept 头是否包含 HTML
+    const acceptsHtml = accept.includes('text/html');
+
+    // 检查 User-Agent 是否包含浏览器特征
+    // 排除 curl、wget、python-requests、go-http 等工具
+    const browserPatterns = [
+        'Mozilla/', 'Chrome/', 'Safari/', 'Firefox/', 'Edge/', 'Opera/',
+        'MSIE', 'Trident/', 'SamsungBrowser/', 'UCBrowser/'
+    ];
+    const isBrowserUA = browserPatterns.some(pattern => userAgent.includes(pattern));
+
+    // 排除明确的非浏览器工具
+    const nonBrowserPatterns = [
+        'curl/', 'wget/', 'Python-requests', 'python-requests', 'requests/',
+        'go-http-tool', 'Java/', 'okhttp', 'axios/', 'node-fetch', 'deno/',
+        'libwww-perl', 'lwp-trivial', 'Git/', 'git/', 'GitHub-Hookshot',
+        'HTTPie/', 'http.rb/', 'Ruby/', 'PHP/', 'PostmanRuntime/',
+        'insomnia/', 'Paw/', 'REST Client', 'Swift/', 'Darwin/',
+        'CF-Workers', 'Cloudflare-Workers', 'Worker/', 'dart:io'
+    ];
+    const isToolUA = nonBrowserPatterns.some(pattern => userAgent.includes(pattern));
+
+    return acceptsHtml && isBrowserUA && !isToolUA;
+}
+
+/**
+ * 检查路径是否为允许浏览器访问的页面
+ * @param {string} pathname - 请求路径
+ * @returns {boolean}
+ */
+export function isAllowedBrowserPath(pathname) {
+    const allowedPaths = ['/', '', '/hf_downloader.py'];
+    return allowedPaths.includes(pathname);
+}
+
+/**
+ * 验证浏览器访问权限
+ * @param {Request} request - 请求对象
+ * @param {string} pathname - 请求路径
+ * @param {boolean} restrictBrowserAccess - 是否启用浏览器访问限制
+ * @returns {Response | null} - 如果验证失败返回错误响应，否则返回 null
+ */
+export function validateBrowserAccess(request, pathname, restrictBrowserAccess) {
+    if (!restrictBrowserAccess) {
+        return null;
+    }
+
+    if (isBrowserRequest(request) && !isAllowedBrowserPath(pathname)) {
+        return new Response(
+            '浏览器访问受限。请使用 API 客户端（curl、wget、Python 等）访问模型文件。\n\n' +
+            '允许访问的页面：\n' +
+            '  - / (首页)\n' +
+            '  - /hf_downloader.py (下载脚本)',
+            {
+                status: 403,
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            }
+        );
+    }
+
+    return null;
 }

@@ -1,7 +1,7 @@
 # HuggingFace Proxy
 
 🤗 一个简洁高效的 HuggingFace 代理服务，基于 Cloudflare Workers。
-体验地址：https://hf.rimuru.uk
+体验地址：https://hf.rimuru.cc
 
 ## ✨ 特性
 
@@ -118,6 +118,19 @@ python hf_downloader.py bert-base-uncased -6   # 强制使用 IPv6
 ```
 
 ## 📝 配置说明
+
+### 环境变量
+
+在 Cloudflare Pages 设置中可以配置以下环境变量：
+
+| 变量名 | 说明 | 可选值 |
+|--------|------|--------|
+| `RESTRICT_BROWSER_ACCESS` | 限制浏览器直接访问代理 | `true` / `false` (未设置默认为 `false`) |
+
+- `RESTRICT_BROWSER_ACCESS=true` 时，浏览器只能访问首页 (`/`) 和脚本下载页面 (`/hf_downloader.py`)，其他路径将被拒绝
+- 适用于希望限制浏览器直接下载，强制使用 Python 脚本的场景
+
+### 代码配置
 
 编辑 `src/config.js` 可以修改：
 
