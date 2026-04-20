@@ -1,6 +1,6 @@
 /**
  * HuggingFace Proxy Worker
- * 构建时间: 2026-04-20T13:15:39.445Z
+ * 构建时间: 2026-04-20T14:28:13.240Z
  * 
  * 此文件由 build.js 自动生成，请勿手动编辑
  * 源代码位于 src/ 目录
@@ -313,6 +313,7 @@ import sys
 import socket
 import json
 import hashlib
+import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -370,6 +371,104 @@ def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
         return original_getaddrinfo(host, port, family, type, proto, flags)
         
     socket.getaddrinfo = patched_getaddrinfo
+
+
+def get_hf_hub_cache() -> Path:
+    """\u83B7\u53D6 HuggingFace Hub cache \u6839\u76EE\u5F55"""
+    # \u4F18\u5148\u7EA7: HF_HUB_CACHE > HF_HOME/hub > ~/.cache/huggingface/hub
+    hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hub_cache:
+        return Path(hub_cache)
+    hf_home = os.environ.get("HF_HOME")
+    if hf_home:
+        return Path(hf_home) / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def resolve_commit_sha(session, base_url: str, api_prefix: str, revision: str) -> str:
+    """\u901A\u8FC7 API \u83B7\u53D6 revision \u5BF9\u5E94\u7684 commit SHA"""
+    url = f"{base_url}{api_prefix}/revision/{revision}"
+    try:
+        resp = session.get(url, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        return data["sha"]
+    except Exception as e:
+        print(f"\u26A0\uFE0F \u83B7\u53D6 commit SHA \u5931\u8D25: {e}")
+        raise
+
+
+def compute_sha256(file_path: Path) -> str:
+    """\u8BA1\u7B97\u6587\u4EF6\u7684 SHA256 \u54C8\u5E0C"""
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(8 * 1024 * 1024)  # 8MB chunks
+            if not chunk:
+                break
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
+def import_to_cache(output_dir: Path, repo_id: str, repo_type: str,
+                    revision: str, commit_sha: str, file_list: List[FileInfo]) -> None:
+    """\u5C06\u4E0B\u8F7D\u597D\u7684\u6587\u4EF6\u5BFC\u5165\u5230 HuggingFace Hub cache \u683C\u5F0F"""
+    # \u6784\u5EFA\u7F13\u5B58\u76EE\u5F55\u540D: models--org--repo / datasets--org--repo / spaces--org--repo
+    prefix = {"model": "models", "dataset": "datasets", "space": "spaces"}[repo_type]
+    safe_name = repo_id.replace("/", "--")
+    cache_repo_dir = get_hf_hub_cache() / f"{prefix}--{safe_name}"
+
+    blobs_dir = cache_repo_dir / "blobs"
+    snapshots_dir = cache_repo_dir / "snapshots" / commit_sha
+    refs_dir = cache_repo_dir / "refs"
+
+    blobs_dir.mkdir(parents=True, exist_ok=True)
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    refs_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"\\n\u{1F4E6} \u6B63\u5728\u5BFC\u5165\u5230 HF cache: {cache_repo_dir}")
+
+    for file_info in file_list:
+        src_file = output_dir / file_info.path
+        if not src_file.exists():
+            print(f"  \u26A0\uFE0F \u8DF3\u8FC7\u4E0D\u5B58\u5728\u7684\u6587\u4EF6: {file_info.path}")
+            continue
+
+        # \u8BA1\u7B97 SHA256
+        sha256_hash = compute_sha256(src_file)
+        blob_path = blobs_dir / sha256_hash
+
+        # \u79FB\u52A8\u5230 blobs\uFF08\u5982\u5DF2\u5B58\u5728\u5219\u8DF3\u8FC7\uFF09
+        if not blob_path.exists():
+            shutil.move(str(src_file), str(blob_path))
+        else:
+            src_file.unlink()
+
+        # \u5728 snapshots \u4E2D\u521B\u5EFA\u94FE\u63A5
+        snapshot_path = snapshots_dir / file_info.path
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if snapshot_path.exists() or snapshot_path.is_symlink():
+            snapshot_path.unlink()
+
+        try:
+            # \u76F8\u5BF9\u8DEF\u5F84\u7B26\u53F7\u94FE\u63A5
+            rel_blob = os.path.relpath(str(blob_path), str(snapshot_path.parent))
+            os.symlink(rel_blob, str(snapshot_path))
+        except OSError:
+            # Windows fallback: \u590D\u5236
+            shutil.copy2(str(blob_path), str(snapshot_path))
+
+    # \u5199\u5165 refs
+    ref_file = refs_dir / revision
+    ref_file.write_text(commit_sha)
+
+    # \u5220\u9664\u539F\u59CB\u4E0B\u8F7D\u76EE\u5F55
+    shutil.rmtree(output_dir, ignore_errors=True)
+
+    print(f"\u2705 \u5BFC\u5165\u5B8C\u6210: {cache_repo_dir}")
+    print(f"   snapshots/{commit_sha[:12]}.../ ({len(file_list)} \u4E2A\u6587\u4EF6)")
+    print(f"   refs/{revision} -> {commit_sha[:12]}...")
 
 
 @dataclass
@@ -652,6 +751,8 @@ def main():
                         help="\u4EC5\u5217\u51FA\u6587\u4EF6\uFF0C\u4E0D\u4E0B\u8F7D")
     parser.add_argument("--ipv4", "-4", action="store_true", help="\u5F3A\u5236\u4F7F\u7528 IPv4")
     parser.add_argument("--ipv6", "-6", action="store_true", help="\u5F3A\u5236\u4F7F\u7528 IPv6")
+    parser.add_argument("--cache", "-c", action="store_true",
+                        help="\u4E0B\u8F7D\u5B8C\u6210\u540E\u5BFC\u5165\u5230 HuggingFace Hub cache (\u652F\u6301 from_pretrained \u76F4\u63A5\u52A0\u8F7D)")
     
     args = parser.parse_args()
 
@@ -707,7 +808,23 @@ def main():
         print("=" * 70)
         print(f"\u603B\u8BA1: {len(files)} \u4E2A\u6587\u4EF6, {downloader._format_size(sum(f.size for f in files))}")
     else:
-        downloader.download_all()
+        files = downloader.get_file_list()
+        results = downloader.download_all(files)
+
+        # \u4E0B\u8F7D\u6210\u529F\u540E\u5BFC\u5165\u5230 HF cache
+        if args.cache and results["failed"] == 0:
+            try:
+                commit_sha = resolve_commit_sha(
+                    downloader.session, downloader.base_url,
+                    downloader.api_prefix, downloader.revision
+                )
+                import_to_cache(
+                    downloader.output_dir, args.repo_id, args.type,
+                    args.revision, commit_sha, files
+                )
+            except Exception as e:
+                print(f"\\n\u274C \u5BFC\u5165 cache \u5931\u8D25: {e}")
+                print(f"   \u6587\u4EF6\u4ECD\u4FDD\u7559\u5728: {downloader.output_dir}")
 
 
 if __name__ == "__main__":
