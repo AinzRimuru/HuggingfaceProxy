@@ -1,0 +1,6 @@
+name = "hf-proxy"
+main = "_worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+RESTRICT_BROWSER_ACCESS = "true"
