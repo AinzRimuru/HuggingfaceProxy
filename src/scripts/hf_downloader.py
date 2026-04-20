@@ -18,6 +18,7 @@ import sys
 import socket
 import json
 import hashlib
+import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -75,6 +76,104 @@ def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
         return original_getaddrinfo(host, port, family, type, proto, flags)
         
     socket.getaddrinfo = patched_getaddrinfo
+
+
+def get_hf_hub_cache() -> Path:
+    """获取 HuggingFace Hub cache 根目录"""
+    # 优先级: HF_HUB_CACHE > HF_HOME/hub > ~/.cache/huggingface/hub
+    hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hub_cache:
+        return Path(hub_cache)
+    hf_home = os.environ.get("HF_HOME")
+    if hf_home:
+        return Path(hf_home) / "hub"
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def resolve_commit_sha(session, base_url: str, api_prefix: str, revision: str) -> str:
+    """通过 API 获取 revision 对应的 commit SHA"""
+    url = f"{base_url}{api_prefix}/revision/{revision}"
+    try:
+        resp = session.get(url, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        return data["sha"]
+    except Exception as e:
+        print(f"⚠️ 获取 commit SHA 失败: {e}")
+        raise
+
+
+def compute_sha256(file_path: Path) -> str:
+    """计算文件的 SHA256 哈希"""
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(8 * 1024 * 1024)  # 8MB chunks
+            if not chunk:
+                break
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
+def import_to_cache(output_dir: Path, repo_id: str, repo_type: str,
+                    revision: str, commit_sha: str, file_list: List[FileInfo]) -> None:
+    """将下载好的文件导入到 HuggingFace Hub cache 格式"""
+    # 构建缓存目录名: models--org--repo / datasets--org--repo / spaces--org--repo
+    prefix = {"model": "models", "dataset": "datasets", "space": "spaces"}[repo_type]
+    safe_name = repo_id.replace("/", "--")
+    cache_repo_dir = get_hf_hub_cache() / f"{prefix}--{safe_name}"
+
+    blobs_dir = cache_repo_dir / "blobs"
+    snapshots_dir = cache_repo_dir / "snapshots" / commit_sha
+    refs_dir = cache_repo_dir / "refs"
+
+    blobs_dir.mkdir(parents=True, exist_ok=True)
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    refs_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"\n📦 正在导入到 HF cache: {cache_repo_dir}")
+
+    for file_info in file_list:
+        src_file = output_dir / file_info.path
+        if not src_file.exists():
+            print(f"  ⚠️ 跳过不存在的文件: {file_info.path}")
+            continue
+
+        # 计算 SHA256
+        sha256_hash = compute_sha256(src_file)
+        blob_path = blobs_dir / sha256_hash
+
+        # 移动到 blobs（如已存在则跳过）
+        if not blob_path.exists():
+            shutil.move(str(src_file), str(blob_path))
+        else:
+            src_file.unlink()
+
+        # 在 snapshots 中创建链接
+        snapshot_path = snapshots_dir / file_info.path
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if snapshot_path.exists() or snapshot_path.is_symlink():
+            snapshot_path.unlink()
+
+        try:
+            # 相对路径符号链接
+            rel_blob = os.path.relpath(str(blob_path), str(snapshot_path.parent))
+            os.symlink(rel_blob, str(snapshot_path))
+        except OSError:
+            # Windows fallback: 复制
+            shutil.copy2(str(blob_path), str(snapshot_path))
+
+    # 写入 refs
+    ref_file = refs_dir / revision
+    ref_file.write_text(commit_sha)
+
+    # 删除原始下载目录
+    shutil.rmtree(output_dir, ignore_errors=True)
+
+    print(f"✅ 导入完成: {cache_repo_dir}")
+    print(f"   snapshots/{commit_sha[:12]}.../ ({len(file_list)} 个文件)")
+    print(f"   refs/{revision} -> {commit_sha[:12]}...")
 
 
 @dataclass
@@ -357,6 +456,8 @@ def main():
                         help="仅列出文件，不下载")
     parser.add_argument("--ipv4", "-4", action="store_true", help="强制使用 IPv4")
     parser.add_argument("--ipv6", "-6", action="store_true", help="强制使用 IPv6")
+    parser.add_argument("--cache", "-c", action="store_true",
+                        help="下载完成后导入到 HuggingFace Hub cache (支持 from_pretrained 直接加载)")
     
     args = parser.parse_args()
 
@@ -412,7 +513,23 @@ def main():
         print("=" * 70)
         print(f"总计: {len(files)} 个文件, {downloader._format_size(sum(f.size for f in files))}")
     else:
-        downloader.download_all()
+        files = downloader.get_file_list()
+        results = downloader.download_all(files)
+
+        # 下载成功后导入到 HF cache
+        if args.cache and results["failed"] == 0:
+            try:
+                commit_sha = resolve_commit_sha(
+                    downloader.session, downloader.base_url,
+                    downloader.api_prefix, downloader.revision
+                )
+                import_to_cache(
+                    downloader.output_dir, args.repo_id, args.type,
+                    args.revision, commit_sha, files
+                )
+            except Exception as e:
+                print(f"\n❌ 导入 cache 失败: {e}")
+                print(f"   文件仍保留在: {downloader.output_dir}")
 
 
 if __name__ == "__main__":
