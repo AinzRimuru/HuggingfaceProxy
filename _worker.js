@@ -1,6 +1,6 @@
 /**
  * HuggingFace Proxy Worker
- * 构建时间: 2026-04-20T14:28:13.240Z
+ * 构建时间: 2026-04-20T14:41:32.273Z
  * 
  * 此文件由 build.js 自动生成，请勿手动编辑
  * 源代码位于 src/ 目录
@@ -373,6 +373,16 @@ def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
     socket.getaddrinfo = patched_getaddrinfo
 
 
+@dataclass
+class FileInfo:
+    """\u6587\u4EF6\u4FE1\u606F"""
+    path: str           # \u76F8\u5BF9\u8DEF\u5F84
+    size: int           # \u6587\u4EF6\u5927\u5C0F (bytes)
+    oid: str            # \u6587\u4EF6 OID (\u7528\u4E8E LFS)
+    lfs: bool           # \u662F\u5426\u662F LFS \u6587\u4EF6
+    download_url: str   # \u4E0B\u8F7D\u5730\u5740
+
+
 def get_hf_hub_cache() -> Path:
     """\u83B7\u53D6 HuggingFace Hub cache \u6839\u76EE\u5F55"""
     # \u4F18\u5148\u7EA7: HF_HUB_CACHE > HF_HOME/hub > ~/.cache/huggingface/hub
@@ -469,16 +479,6 @@ def import_to_cache(output_dir: Path, repo_id: str, repo_type: str,
     print(f"\u2705 \u5BFC\u5165\u5B8C\u6210: {cache_repo_dir}")
     print(f"   snapshots/{commit_sha[:12]}.../ ({len(file_list)} \u4E2A\u6587\u4EF6)")
     print(f"   refs/{revision} -> {commit_sha[:12]}...")
-
-
-@dataclass
-class FileInfo:
-    """\u6587\u4EF6\u4FE1\u606F"""
-    path: str           # \u76F8\u5BF9\u8DEF\u5F84
-    size: int           # \u6587\u4EF6\u5927\u5C0F (bytes)
-    oid: str            # \u6587\u4EF6 OID (\u7528\u4E8E LFS)
-    lfs: bool           # \u662F\u5426\u662F LFS \u6587\u4EF6
-    download_url: str   # \u4E0B\u8F7D\u5730\u5740
 
 
 class HFDownloader:
