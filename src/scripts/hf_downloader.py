@@ -78,6 +78,16 @@ def configure_dns(force_ipv4: bool = False, force_ipv6: bool = False):
     socket.getaddrinfo = patched_getaddrinfo
 
 
+@dataclass
+class FileInfo:
+    """文件信息"""
+    path: str           # 相对路径
+    size: int           # 文件大小 (bytes)
+    oid: str            # 文件 OID (用于 LFS)
+    lfs: bool           # 是否是 LFS 文件
+    download_url: str   # 下载地址
+
+
 def get_hf_hub_cache() -> Path:
     """获取 HuggingFace Hub cache 根目录"""
     # 优先级: HF_HUB_CACHE > HF_HOME/hub > ~/.cache/huggingface/hub
@@ -174,16 +184,6 @@ def import_to_cache(output_dir: Path, repo_id: str, repo_type: str,
     print(f"✅ 导入完成: {cache_repo_dir}")
     print(f"   snapshots/{commit_sha[:12]}.../ ({len(file_list)} 个文件)")
     print(f"   refs/{revision} -> {commit_sha[:12]}...")
-
-
-@dataclass
-class FileInfo:
-    """文件信息"""
-    path: str           # 相对路径
-    size: int           # 文件大小 (bytes)
-    oid: str            # 文件 OID (用于 LFS)
-    lfs: bool           # 是否是 LFS 文件
-    download_url: str   # 下载地址
 
 
 class HFDownloader:
