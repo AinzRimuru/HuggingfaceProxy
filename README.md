@@ -7,7 +7,7 @@
 
 - **零配置使用** - 直接访问即可，所有请求自动转发到 HuggingFace
 - **智能重定向** - 自动处理 CDN 重定向，无需多域名配置
-- **下载器脚本** - 提供 Python 下载器，支持并行下载、断点续传
+- **下载器脚本** - 提供 Python 下载器，支持并行下载、断点续传、HF Cache 导入
 - **模块化架构** - 代码结构清晰，易于维护和扩展
 
 ## 📁 项目结构
@@ -96,6 +96,44 @@ python hf_downloader.py bigcode/starcoder --revision main --workers 8
 python hf_downloader.py bert-base-uncased -4   # 强制使用 IPv4
 python hf_downloader.py bert-base-uncased -6   # 强制使用 IPv6
 # 注：脚本会自动检测教育网环境（CERNET），如检测到则默认开启 IPv6 优化，无需手动指定
+```
+
+### 导入到 HuggingFace Cache
+
+使用 `--cache` 参数，下载完成后自动将文件导入到 HuggingFace Hub 标准缓存目录，`transformers` 等库可直接命中缓存，无需重新下载。
+
+```bash
+# 下载并导入到 cache
+python hf_downloader.py bert-base-uncased --cache
+
+# 指定输出目录 + cache 导入（下载完成后 output 目录会被清理）
+python hf_downloader.py bert-base-uncased --output ./tmp --cache
+```
+
+导入后的缓存结构：
+
+```
+~/.cache/huggingface/hub/
+  models--bert-base-uncased/
+    refs/
+      main                          # commit SHA
+    blobs/
+      {sha256}                      # 文件内容
+    snapshots/
+      {commit_sha}/                 # 文件名 -> blobs 的链接
+        config.json
+        model.safetensors
+        ...
+```
+
+在 Python 中直接使用：
+
+```python
+from transformers import AutoModel, AutoTokenizer
+
+# 直接从缓存加载，不会重新下载
+model = AutoModel.from_pretrained("bert-base-uncased")
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 ```
 
 ## 🔧 工作原理
