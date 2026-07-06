@@ -4,3 +4,11 @@ pages_build_output_dir = "."
 
 [vars]
 RESTRICT_BROWSER_ACCESS = "true"
+
+# 限流绑定：每个客户端 IP 每 10 秒最多 10 次请求（按 Cloudflare 数据中心本地计数）
+# 注意：Pages 项目可能需要在 Dashboard (Settings → Functions → Bindings) 中确认此绑定；
+#       若 env.RATE_LIMITER 未注入，代码会自动跳过限流（不影响可用性）。
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 10 }

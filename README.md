@@ -189,4 +189,10 @@ export const REDIRECT_PREFIX = 'redirect_to_';
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left)](https://www.star-history.com/#AinzRimuru/HuggingfaceProxy&type=date&legend=top-left)
+<a href="https://www.star-history.com/?type=date&legend=top-left&repos=AinzRimuru%2FHuggingfaceProxy">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left" />
+ </picture>
+</a>
