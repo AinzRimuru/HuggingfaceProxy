@@ -20,6 +20,7 @@ import json
 import hashlib
 import shutil
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urljoin, quote
@@ -38,7 +39,9 @@ except ImportError:
 # Worker 会自动将下面的域名替换为请求的域名
 PROXY_DOMAIN = "{{PROXY_DOMAIN}}"  # 你的代理域名
 MAX_RETRIES = 3                    # 最大重试次数
-CHUNK_SIZE = 64 * 1024 * 1024      # 64MB 每块
+INITIAL_CHUNK_SIZE = 64 * 1024 * 1024  # 64MB 初始每块
+MAX_CHUNK_SIZE = 512 * 1024 * 1024     # 块大小上限 (429 退避时翻倍不会超过此值)
+RATE_LIMIT_WAIT = 20              # 触发 429 后等待秒数
 DEFAULT_WORKERS = 4                # 默认并行下载数
 
 
@@ -205,6 +208,9 @@ class HFDownloader:
         self.proxy_domain = proxy_domain
         self.workers = workers
         self.token = token or os.environ.get("HF_TOKEN")
+        # 块大小作为实例变量，便于在 429 时自适应调整
+        # 全局共享：单次下载任务中所有 worker 共同应用提升后的块大小
+        self.chunk_size = INITIAL_CHUNK_SIZE
         
         # 设置输出目录
         if output_dir:
@@ -309,7 +315,7 @@ class HFDownloader:
                 headers = {}
                 if resume_pos > 0:
                     headers["Range"] = f"bytes={resume_pos}-"
-                
+
                 resp = self.session.get(
                     file_info.download_url,
                     headers=headers,
@@ -317,35 +323,51 @@ class HFDownloader:
                     timeout=60,
                     allow_redirects=True
                 )
-                
+
+                # 处理 429 限流：扩大块大小并等待后重试
+                if resp.status_code == 429:
+                    resp.close()
+                    # 仅当文件大于当前块大小时才提升：小文件本身请求频率高，
+                    # 提升块大小对降低请求次数无帮助，反而消耗更多配额
+                    if file_info.size > self.chunk_size and self.chunk_size < MAX_CHUNK_SIZE:
+                        new_chunk = min(self.chunk_size * 2, MAX_CHUNK_SIZE)
+                        if new_chunk > self.chunk_size:
+                            print(f"\n⚠️ 触发 429: 提升块大小 {self.chunk_size // 1024 // 1024}MB → {new_chunk // 1024 // 1024}MB")
+                            self.chunk_size = new_chunk
+                    if attempt < MAX_RETRIES - 1:
+                        print(f"\n⏳ 触发 429 限流，等待 {RATE_LIMIT_WAIT}s 后重试 ({attempt + 1}/{MAX_RETRIES}): {file_info.path}")
+                        time.sleep(RATE_LIMIT_WAIT)
+                        continue
+                    else:
+                        raise requests.RequestException(f"429 Too Many Requests (已重试 {MAX_RETRIES} 次)")
+
                 # 处理重定向后的响应
                 if resp.status_code == 416:  # Range Not Satisfiable - 文件已完整
                     if progress_bar:
                         progress_bar.update(file_info.size - resume_pos)
                     return True
-                    
+
                 resp.raise_for_status()
-                
+
                 # 确定写入模式
                 mode = "ab" if resume_pos > 0 and resp.status_code == 206 else "wb"
                 if mode == "wb":
                     resume_pos = 0  # 重新下载
-                
+
                 with open(output_path, mode) as f:
-                    for chunk in resp.iter_content(chunk_size=CHUNK_SIZE):
+                    for chunk in resp.iter_content(chunk_size=self.chunk_size):
                         if chunk:
                             f.write(chunk)
                             if progress_bar:
                                 progress_bar.update(len(chunk))
-                
+
                 return True
-                
+
             except Exception as e:
                 print(f"\n⚠️ 下载失败 ({attempt + 1}/{MAX_RETRIES}): {file_info.path} - {e}")
                 if attempt < MAX_RETRIES - 1:
-                    import time
                     time.sleep(2 ** attempt)  # 指数退避
-        
+
         return False
     
     def download_all(self, files: Optional[List[FileInfo]] = None) -> Dict[str, Any]:

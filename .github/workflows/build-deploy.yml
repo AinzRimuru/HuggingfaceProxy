@@ -13,33 +13,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write  # 允许推送到仓库
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Build _worker.js
+
+      # 仅验证构建是否成功，产物由 Cloudflare Pages 自行构建部署
+      - name: Build verify
         run: npm run build
-      
-      - name: Commit and push _worker.js
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -f _worker.js
-          git diff --staged --quiet || git commit -m "chore: auto-build _worker.js [skip actions]"
-          git push origin HEAD:${{ github.ref_name }}

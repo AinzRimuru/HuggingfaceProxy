@@ -36,12 +36,14 @@ hf_proxy/
 
 1. Fork 本仓库
 2. 在 Cloudflare Dashboard 创建 Pages 项目，连接 GitHub 仓库
-3. 推送代码到 `main` 分支，GitHub Actions 会自动构建 `_worker.js`
-4. Cloudflare Pages 自动拉取最新代码并部署
+3. 在项目的 **Settings → Builds & deployments → Build configurations** 中设置：
+   - **Build command**: `npm run build`
+   - **Build output directory**: `.`
+4. 推送代码到 `main` 分支，Cloudflare Pages 会自动拉取代码、执行构建并部署
 
 部署完成后，Cloudflare 会自动分配一个 `*.pages.dev` 域名，也可以在项目设置中绑定自定义域名。
 
-> **注意**: `_worker.js` 已添加到 `.gitignore`，仅由 GitHub Actions 构建并强制提交。
+> **注意**: `_worker.js` 是构建产物，已添加到 `.gitignore`，不会进入 git 历史。Cloudflare Pages 会在部署时通过 `npm run build` 自动生成。
 
 ### 本地开发
 
