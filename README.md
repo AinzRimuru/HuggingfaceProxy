@@ -189,10 +189,14 @@ export const REDIRECT_PREFIX = 'redirect_to_';
 
 ## Star History
 
+<!-- star-history:start -->
+<!-- 图表由 .github/workflows/star-history.yml 在 CI 中渲染并提交到独立的 `star-history` 分支；
+     main 分支不存放任何图表产物，文件名固定，由 workflow 定期覆盖刷新。
+     因 api.star-history.com 托管 API 自 2026-06-30 起失效，故改用自托管静态文件（不再依赖 sealed_token）。 -->
 <a href="https://www.star-history.com/?repos=AinzRimuru%2FHuggingfaceProxy&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&theme=dark&legend=top-left&sealed_token=lNk_ex9DlzAVaDEG29VQ28YDd_tnOL2puiWQoWkO9WukOcbPM6BUcSxgSqkF9IsYxQu4SAXZPFjo-HxWhVnKg_cSgRObEf9AUfHhsxaRrQACXysLKcSIcZKWOqaZ1a0EvLM91tWHUOxMr9wLh9AjcwJvN4X9hzf0nUQ1iKdttc8nqsRo8hPCyN3QprHK" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left&sealed_token=lNk_ex9DlzAVaDEG29VQ28YDd_tnOL2puiWQoWkO9WukOcbPM6BUcSxgSqkF9IsYxQu4SAXZPFjo-HxWhVnKg_cSgRObEf9AUfHhsxaRrQACXysLKcSIcZKWOqaZ1a0EvLM91tWHUOxMr9wLh9AjcwJvN4X9hzf0nUQ1iKdttc8nqsRo8hPCyN3QprHK" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AinzRimuru/HuggingfaceProxy&type=date&legend=top-left&sealed_token=lNk_ex9DlzAVaDEG29VQ28YDd_tnOL2puiWQoWkO9WukOcbPM6BUcSxgSqkF9IsYxQu4SAXZPFjo-HxWhVnKg_cSgRObEf9AUfHhsxaRrQACXysLKcSIcZKWOqaZ1a0EvLM91tWHUOxMr9wLh9AjcwJvN4X9hzf0nUQ1iKdttc8nqsRo8hPCyN3QprHK" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://cdn.jsdelivr.net/gh/AinzRimuru/HuggingfaceProxy@star-history/assets/star-history/star-history-dark.svg" />
+   <img alt="Star History Chart" src="https://cdn.jsdelivr.net/gh/AinzRimuru/HuggingfaceProxy@star-history/assets/star-history/star-history-light.svg" />
  </picture>
 </a>
+<!-- star-history:end -->
