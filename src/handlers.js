@@ -89,7 +89,20 @@ export async function handleProxy(request, url) {
             }
         }
 
-        // 6. 非重定向请求，直接返回
+        // 6. 非重定向请求：改写 Link 分页头后返回
+        //    HF API 分页时 Link: rel="next" 指向源站 huggingface.co，
+        //    客户端无法直连源站，改写为代理域名后才能继续翻页
+        const linkHeader = response.headers.get('Link');
+        if (linkHeader && linkHeader.includes('https://huggingface.co')) {
+            const newHeaders = new Headers(response.headers);
+            newHeaders.set('Link', linkHeader.replaceAll('https://huggingface.co', proxyOrigin));
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+            });
+        }
+
         return response;
 
     } catch (e) {

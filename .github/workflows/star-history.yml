@@ -1,0 +1,87 @@
+name: Star History
+
+# 背景：自 2026-06-30 起 GitHub 限制 stargazers API 仅仓库管理员/协作者可读，
+# 托管版 api.star-history.com 对大多数仓库返回空图（star-history/star-history#539）。
+# 解决方案参考：https://github.com/star-history/star-history/issues/539#issuecomment-4894100235
+#
+# 本 workflow 在 CI 内用默认 GITHUB_TOKEN 读取自己仓库的 stargazers 渲染图表，
+# 关闭 action 自带的提交与 README 改写，改由本 workflow 把产物提交到一个**独立的**
+# `star-history` 孤儿分支——main 分支不存放任何图表产物，只保留本 action 配置。
+# README 通过 jsDelivr CDN 引用该独立分支上的 SVG（返回正确的 image/svg+xml）。
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 每 6 小时刷新一次（UTC）
+  watch:
+    types: [started]        # 有人 star 时立即刷新（仅对默认分支上的 workflow 生效）
+  workflow_dispatch:        # 手动触发（首次部署 / 临时刷新用）
+
+permissions:
+  contents: write           # 允许 GITHUB_TOKEN push 到 star-history 分支
+
+concurrency:
+  group: star-history
+  cancel-in-progress: true  # 突发 star 合并为单次运行，避免浪费 API 配额
+
+env:
+  ASSET_BRANCH: star-history
+  OUTPUT_DIR: assets/star-history
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare asset branch (create orphan if missing)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin "$ASSET_BRANCH" >/dev/null 2>&1; then
+            echo "Asset branch '$ASSET_BRANCH' exists; checking it out."
+            git fetch --depth=1 origin "$ASSET_BRANCH"
+            git checkout -B "$ASSET_BRANCH" "origin/$ASSET_BRANCH"
+          else
+            echo "Asset branch '$ASSET_BRANCH' does not exist; creating an orphan branch."
+            git checkout --orphan "$ASSET_BRANCH"
+            git rm -rf . >/dev/null 2>&1 || true
+            git commit --allow-empty -m "chore: initialize star-history asset branch [skip ci]"
+          fi
+
+      - name: Render star history charts
+        uses: narayann7/star-history-action@v1
+        with:
+          repos: ${{ github.repository }}
+          output-dir: ${{ env.OUTPUT_DIR }}
+          type: Date
+          themes: light,dark
+          width: '800'
+          # 关闭 action 自带的提交与 README 改写；提交目标分支由本 workflow 控制。
+          commit: 'false'
+          update-readme: 'false'
+
+      - name: Commit & push charts to asset branch
+        id: push
+        run: |
+          git add "$OUTPUT_DIR"
+          if git diff --cached --quiet; then
+            echo "No chart changes; nothing to push."
+            exit 0
+          fi
+          git commit -m "chore: update star history [skip ci]"
+          git push origin "HEAD:$ASSET_BRANCH"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Purge jsDelivr cache
+        if: steps.push.outputs.pushed == 'true'
+        continue-on-error: true
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          base="https://purge.jsdelivr.net/gh/${REPO}@${ASSET_BRANCH}/${OUTPUT_DIR}"
+          curl -fsSL -o /dev/null "$base/star-history-light.svg" || true
+          curl -fsSL -o /dev/null "$base/star-history-dark.svg"  || true
