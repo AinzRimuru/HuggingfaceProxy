@@ -37,6 +37,21 @@ export function handleDownloaderScript(hostname) {
 }
 
 /**
+ * 处理 /version 请求
+ * 返回当前部署对应的 git commit hash (构建时由 build.js 注入)
+ * @returns {Response}
+ */
+export function handleVersion() {
+    return new Response(`${__COMMIT_SHA__}\n`, {
+        status: 200,
+        headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-store'
+        }
+    });
+}
+
+/**
  * 处理代理请求
  * @param {Request} request - 原始请求
  * @param {URL} url - 解析后的 URL
