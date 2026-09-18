@@ -78,8 +78,19 @@ https://your-proxy.com/bert-base-uncased/resolve/main/config.json
 
 # API 调用
 https://your-proxy.com/api/models/bert-base-uncased
+
+# 查看当前部署版本 (git commit hash)
+https://your-proxy.com/version
 ```
 
+### 查看部署版本
+
+访问 `/version` 返回当前部署对应的 git commit hash（构建时注入，便于确认线上版本）：
+
+```bash
+curl https://your-proxy.com/version
+# 803de27fa8fbb8dbfc6da7763e8b6999109e4dee
+```
 ### 使用下载器脚本
 
 ```bash

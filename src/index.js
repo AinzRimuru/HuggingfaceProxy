@@ -15,7 +15,7 @@
  *   - false 或未设置: 不限制
  */
 
-import { handleHome, handleDownloaderScript, handleProxy } from './handlers.js';
+import { handleHome, handleDownloaderScript, handleProxy, handleVersion } from './handlers.js';
 import { validateBrowserAccess } from './utils.js';
 import { REDIRECT_PREFIX } from './config.js';
 
@@ -41,6 +41,10 @@ export default {
             // 下载器脚本
             case pathname === '/hf_downloader.py':
                 return handleDownloaderScript(hostname);
+
+            // 版本信息
+            case pathname === '/version':
+                return handleVersion();
 
             // 代理请求
             default: {

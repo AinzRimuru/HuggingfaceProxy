@@ -117,7 +117,7 @@ export function isBrowserRequest(request) {
  * @returns {boolean}
  */
 export function isAllowedBrowserPath(pathname) {
-    const allowedPaths = ['/', '', '/hf_downloader.py'];
+    const allowedPaths = ['/', '', '/hf_downloader.py', '/version'];
     return allowedPaths.includes(pathname);
 }
 
@@ -138,7 +138,8 @@ export function validateBrowserAccess(request, pathname, restrictBrowserAccess) 
             '浏览器访问受限。请使用 API 客户端（curl、wget、Python 等）访问模型文件。\n\n' +
             '允许访问的页面：\n' +
             '  - / (首页)\n' +
-            '  - /hf_downloader.py (下载脚本)',
+            '  - /hf_downloader.py (下载脚本)\n' +
+            '  - /version (版本信息)',
             {
                 status: 403,
                 headers: { 'Content-Type': 'text/plain; charset=utf-8' }
