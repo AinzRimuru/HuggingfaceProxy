@@ -46,6 +46,8 @@ RATE_LIMIT_WAIT = 20              # 触发 429 后等待秒数
 # 窗口必须显著小于 RATE_LIMIT_WAIT，确保等待结束前已解除锁定，新提升可立即生效
 RATE_LIMIT_ESCALATION_WINDOW = 5
 DEFAULT_WORKERS = 4                # 默认并行下载数
+TREE_PAGE_INTERVAL = 1.2           # tree 列表页间隔(秒): 代理与 HF 源站限流均为 10次/10秒,
+                                   # 隔 1.2 秒翻页让窗口内旧请求自然滑出, 避免触发 429
 
 
 def check_cernet() -> bool:
@@ -275,6 +277,9 @@ class HFDownloader:
         page = 0
         
         while True:
+            if page > 0:
+                # 页间节流：避免触发代理与 HF 源站的 10次/10秒 限流
+                time.sleep(TREE_PAGE_INTERVAL)
             page += 1
             # 首次请求带上 recursive 参数；后续直接使用下一页完整 URL（已含 cursor）
             resp = self._get_tree_page(url, params, page)
@@ -316,9 +321,13 @@ class HFDownloader:
             try:
                 resp = self.session.get(url, params=params, timeout=30)
                 if resp.status_code == 429:
-                    # 优先遵循服务端 Retry-After（代理限流返回 10s）
+                    # 优先遵循服务端 Retry-After (代理限流返回 10s；HF 源站边缘限流为递减计数)
+                    # 注意: Retry-After=0 是边界竞态(封锁将解未解)，不能真等 0 秒
                     retry_after = resp.headers.get("Retry-After", "")
-                    wait = int(retry_after) if retry_after.isdigit() else RATE_LIMIT_WAIT
+                    wait = int(retry_after) if retry_after.isdigit() and int(retry_after) > 0 else RATE_LIMIT_WAIT
+                    wait += 1  # 缓冲 1 秒，避免刚解封就撞上边界
+                    if attempt > 0:
+                        wait *= 2  # 连续 429 时放大等待，防止封锁期内重试延长封锁
                     if attempt < MAX_RETRIES - 1:
                         print(f"\n⏳ 列表请求触发限流，等待 {wait}s 后重试 "
                               f"(第 {page} 页, 第 {attempt + 1}/{MAX_RETRIES} 次)")
