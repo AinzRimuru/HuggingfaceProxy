@@ -23,7 +23,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from urllib.parse import urljoin, quote
+from urllib.parse import urljoin, quote, urlsplit
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -263,19 +263,27 @@ class HFDownloader:
         return all_files
     
     def _fetch_tree_recursive(self, path: str, files: List[FileInfo]) -> None:
-        """递归获取目录树"""
-        params = {"recursive": "true"} if not path else {}
-        
+        """递归获取目录树（自动跟随分页）"""
+        # HF tree API 每页最多返回 1000 条，超过时通过 Link: rel="next" 响应头告知下一页，
+        # 只请求一次会静默丢失后续页的文件（多文件数据集下载不齐全的根因）
         if path:
-            url = f"{self.base_url}{self.api_prefix}/tree/{self.revision}/{path}"
+            url = f"{self.base_url}{self.api_prefix}/tree/{self.revision}/{quote(path, safe='/')}"
         else:
             url = f"{self.base_url}{self.api_prefix}/tree/{self.revision}"
-            params["recursive"] = "true"
         
-        try:
-            resp = self.session.get(url, params=params, timeout=30)
-            resp.raise_for_status()
-            items = resp.json()
+        params: Optional[Dict[str, str]] = {"recursive": "true"}
+        page = 0
+        
+        while True:
+            page += 1
+            try:
+                # 首次请求带上 recursive 参数；后续直接使用下一页完整 URL（已含 cursor）
+                resp = self.session.get(url, params=params, timeout=30)
+                resp.raise_for_status()
+                items = resp.json()
+            except requests.RequestException as e:
+                print(f"⚠️ 获取文件列表失败 (第 {page} 页): {e}")
+                raise
             
             for item in items:
                 if item.get("type") == "file":
@@ -295,11 +303,39 @@ class HFDownloader:
                         lfs=lfs,
                         download_url=download_url
                     ))
-                    
-        except requests.RequestException as e:
-            print(f"⚠️ 获取文件列表失败: {e}")
-            raise
+            
+            if page > 1:
+                print(f"   └─ 已获取第 {page} 页，累计 {len(files)} 个文件")
+            
+            # 跟随分页，直到没有下一页
+            next_url = self._next_page_url(resp)
+            if next_url is None:
+                break
+            url = next_url
+            params = None
     
+    def _next_page_url(self, resp) -> Optional[str]:
+        """解析 Link 响应头中的下一页 URL，并改写为代理域名
+
+        HF API 返回的 Link 头指向源站 huggingface.co（Worker 对非重定向响应原样透传），
+        客户端通常无法直连源站，必须替换为代理域名后再请求。
+        """
+        next_url = resp.links.get("next", {}).get("url")
+        if not next_url:
+            return None
+        
+        parsed = urlsplit(next_url)
+        proxy_host = urlsplit(self.base_url).hostname
+        # 仅跟随 HF 源站或代理自身的分页链接；新版 Worker 会直接改写为本域名
+        if parsed.hostname not in ("huggingface.co", proxy_host):
+            print(f"⚠️ 分页 Link 指向未知域名，停止翻页: {parsed.hostname}")
+            return None
+        
+        rewritten = f"{self.base_url}{parsed.path}"
+        if parsed.query:
+            rewritten = f"{rewritten}?{parsed.query}"
+        return rewritten
+        
     def download_file(self, file_info: FileInfo, progress_bar: Optional[tqdm] = None) -> bool:
         """下载单个文件"""
         output_path = self.output_dir / file_info.path
