@@ -1,0 +1,78 @@
+name: Deploy Worker
+
+# 背景：Cloudflare Workers Builds（git 集成）自 2026-07 起不再触发构建，
+# 改由 GitHub Actions 构建并通过 wrangler 直接部署 Worker。
+#
+# 所需配置（均为仓库 Secret，Settings → Secrets and variables → Actions）：
+#   - CLOUDFLARE_API_TOKEN（Edit Cloudflare Workers 权限）
+#   - CLOUDFLARE_ACCOUNT_ID（Dashboard 右侧栏 / Workers 和 Pages 概览页可查）
+#
+# 触发：push 到 deploy 分支（生产），或手动 workflow_dispatch
+
+on:
+  push:
+    branches: [main, deploy]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: 构建并部署 (deploy)
+    if: github.ref == 'refs/heads/deploy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查 Secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::缺少仓库 Secret CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::缺少仓库 Secret CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建并部署 Worker
+        run: npm run deploy:worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: 输出版本信息
+        run: |
+          echo "部署完成 commit: ${GITHUB_SHA}"
+          echo "稍后可访问 https://hf.rimuru.work/version 核对"
+
+  build-check:
+    name: 构建检查 (main)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建
+        run: npm run build
