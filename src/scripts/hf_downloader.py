@@ -276,14 +276,9 @@ class HFDownloader:
         
         while True:
             page += 1
-            try:
-                # 首次请求带上 recursive 参数；后续直接使用下一页完整 URL（已含 cursor）
-                resp = self.session.get(url, params=params, timeout=30)
-                resp.raise_for_status()
-                items = resp.json()
-            except requests.RequestException as e:
-                print(f"⚠️ 获取文件列表失败 (第 {page} 页): {e}")
-                raise
+            # 首次请求带上 recursive 参数；后续直接使用下一页完整 URL（已含 cursor）
+            resp = self._get_tree_page(url, params, page)
+            items = resp.json()
             
             for item in items:
                 if item.get("type") == "file":
@@ -313,6 +308,30 @@ class HFDownloader:
                 break
             url = next_url
             params = None
+    
+    def _get_tree_page(self, url: str, params: Optional[Dict[str, str]], page: int):
+        """请求 tree 列表页，带 429 限流退避与网络错误重试"""
+        last_exc: Optional[requests.RequestException] = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = self.session.get(url, params=params, timeout=30)
+                if resp.status_code == 429:
+                    # 优先遵循服务端 Retry-After（代理限流返回 10s）
+                    retry_after = resp.headers.get("Retry-After", "")
+                    wait = int(retry_after) if retry_after.isdigit() else RATE_LIMIT_WAIT
+                    if attempt < MAX_RETRIES - 1:
+                        print(f"\n⏳ 列表请求触发限流，等待 {wait}s 后重试 "
+                              f"(第 {page} 页, 第 {attempt + 1}/{MAX_RETRIES} 次)")
+                        time.sleep(wait)
+                        continue
+                resp.raise_for_status()
+                return resp
+            except requests.RequestException as e:
+                last_exc = e
+                print(f"\n⚠️ 获取文件列表失败 (第 {page} 页, 第 {attempt + 1}/{MAX_RETRIES} 次): {e}")
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(2 ** attempt)  # 指数退避
+        raise last_exc
     
     def _next_page_url(self, resp) -> Optional[str]:
         """解析 Link 响应头中的下一页 URL，并改写为代理域名
