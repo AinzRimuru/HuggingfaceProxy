@@ -15,7 +15,7 @@
  *   - false 或未设置: 不限制
  */
 
-import { handleHome, handleDownloaderScript, handleProxy, handleVersion } from './handlers.js';
+import { handleHome, handleDownloaderScript, handleProxy, handleVersion, handleRobots } from './handlers.js';
 import { validateBrowserAccess } from './utils.js';
 import { REDIRECT_PREFIX } from './config.js';
 
@@ -45,6 +45,10 @@ export default {
             // 版本信息
             case pathname === '/version':
                 return handleVersion();
+
+            // robots.txt (反爬：仅允许首页抓取，其余禁止)
+            case pathname === '/robots.txt':
+                return handleRobots();
 
             // 代理请求
             default: {

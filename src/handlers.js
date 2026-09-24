@@ -52,6 +52,25 @@ export function handleVersion() {
 }
 
 /**
+ * 处理 /robots.txt 请求
+ * 反爬：仅允许抓取首页 (/)，其余路径全部禁止
+ * 说明: Allow: /$ 中的 $ 为结尾锚点 (Google/Bing/百度等主流引擎均支持)，
+ *       使 Allow 规则比 Disallow: / 更具体，从而只放行根路径
+ * @returns {Response}
+ */
+export function handleRobots() {
+    const body = 'User-agent: *\nAllow: /$\nDisallow: /\n';
+    return new Response(body, {
+        status: 200,
+        headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'public, max-age=86400',
+            'X-Robots-Tag': 'noindex, nofollow'
+        }
+    });
+}
+
+/**
  * 处理代理请求
  * @param {Request} request - 原始请求
  * @param {URL} url - 解析后的 URL
