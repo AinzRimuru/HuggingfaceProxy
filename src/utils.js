@@ -117,7 +117,7 @@ export function isBrowserRequest(request) {
  * @returns {boolean}
  */
 export function isAllowedBrowserPath(pathname) {
-    const allowedPaths = ['/', '', '/hf_downloader.py', '/version'];
+    const allowedPaths = ['/', '', '/hf_downloader.py', '/version', '/robots.txt'];
     return allowedPaths.includes(pathname);
 }
 
@@ -139,7 +139,8 @@ export function validateBrowserAccess(request, pathname, restrictBrowserAccess) 
             '允许访问的页面：\n' +
             '  - / (首页)\n' +
             '  - /hf_downloader.py (下载脚本)\n' +
-            '  - /version (版本信息)',
+            '  - /version (版本信息)\n' +
+            '  - /robots.txt (爬虫规则)',
             {
                 status: 403,
                 headers: { 'Content-Type': 'text/plain; charset=utf-8' }
