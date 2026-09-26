@@ -2,7 +2,7 @@
  * 工具函数
  */
 
-import { ALLOWED_UPSTREAM_DOMAINS, DEFAULT_UPSTREAM, REDIRECT_PREFIX, SCRIPT_USER_AGENT, OUTDATED_PATH_PREFIX } from './config.js';
+import { ALLOWED_UPSTREAM_DOMAINS, DEFAULT_UPSTREAM, REDIRECT_PREFIX } from './config.js';
 
 /**
  * 判断是否是允许的上游域名
@@ -118,8 +118,7 @@ export function isBrowserRequest(request) {
  */
 export function isAllowedBrowserPath(pathname) {
     const allowedPaths = ['/', '', '/hf_downloader.py', '/version', '/robots.txt'];
-    // 旧版脚本升级提示页也允许浏览器访问
-    return allowedPaths.includes(pathname) || pathname.startsWith(OUTDATED_PATH_PREFIX);
+    return allowedPaths.includes(pathname);
 }
 
 /**
@@ -146,32 +145,6 @@ export function validateBrowserAccess(request, pathname, restrictBrowserAccess) 
                 status: 403,
                 headers: { 'Content-Type': 'text/plain; charset=utf-8' }
             }
-        );
-    }
-
-    return null;
-}
-
-/**
- * 下载脚本版本网关
- * 旧版脚本 (HF-Downloader/ 前缀但 UA ≠ 当前版本) 的请求重定向到自解释路径，
- * 使旧脚本报错行中的 URL 直接携带升级提示 (requests 的 raise_for_status 只打印状态码和 URL)
- * @param {Request} request - 请求对象
- * @param {string} pathname - 请求路径
- * @returns {Response | null} - 旧版脚本返回重定向响应，否则返回 null
- */
-export function checkScriptVersion(request, pathname) {
-    // 公开页面与 OUTDATED 路径本身不拦截 (避免重定向循环)
-    if (isAllowedBrowserPath(pathname) || pathname.startsWith(OUTDATED_PATH_PREFIX)) {
-        return null;
-    }
-
-    const userAgent = request.headers.get('User-Agent') || '';
-    if (userAgent.startsWith('HF-Downloader/') && userAgent !== SCRIPT_USER_AGENT) {
-        const url = new URL(request.url);
-        return Response.redirect(
-            `${url.origin}${OUTDATED_PATH_PREFIX}/re-download-hf_downloader.py`,
-            302
         );
     }
 
