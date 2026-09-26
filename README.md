@@ -200,10 +200,10 @@ export const REDIRECT_PREFIX = 'redirect_to_';
 
 ### 下载器 User-Agent
 
-`hf_downloader.py` 发出的所有请求（API、下载、教育网检测）统一携带专用 UA：
+`hf_downloader.py` 的 API 与下载请求自带 UA（session 级别，无需额外配置）：
 
 ```
-HF-Downloader/2.0 (+https://github.com/AinzRimuru/HuggingfaceProxy)
+HF-Downloader/1.0 (Python)
 ```
 
 如需阻止其他脚本滥用代理，可在 Cloudflare 安全规则（域名 → Security → Security Rules → 自定义规则）中按 UA 前缀放行，动作设为 Block：
