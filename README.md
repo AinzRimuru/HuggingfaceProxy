@@ -198,6 +198,22 @@ export const DEFAULT_UPSTREAM = 'huggingface.co';
 export const REDIRECT_PREFIX = 'redirect_to_';
 ```
 
+### 下载器 User-Agent
+
+`hf_downloader.py` 发出的所有请求（API、下载、教育网检测）统一携带专用 UA：
+
+```
+HF-Downloader/2.0 (+https://github.com/AinzRimuru/HuggingfaceProxy)
+```
+
+如需阻止其他脚本滥用代理，可在 Cloudflare 安全规则（域名 → Security → Security Rules → 自定义规则）中按 UA 前缀放行，动作设为 Block：
+
+```
+(not starts_with(http.user_agent, "HF-Downloader/") and not http.request.uri.path in {"/" "/robots.txt" "/hf_downloader.py" "/version"})
+```
+
+效果：首页、robots.txt、脚本下载、版本接口对所有客户端开放；其余路径仅允许携带 `HF-Downloader/` 前缀 UA 的请求。UA 可伪造，仅作基础过滤。
+
 ## Star History
 
 <!-- star-history:start -->
