@@ -3,6 +3,7 @@
  */
 
 import { isAllowedUpstream, parseRequest, rewriteLocation } from './utils.js';
+import { SCRIPT_USER_AGENT } from './config.js';
 import HOME_HTML from './templates/home.html';
 import HF_DOWNLOADER_SCRIPT from './scripts/hf_downloader.py';
 
@@ -67,6 +68,49 @@ export function handleRobots() {
             'Cache-Control': 'public, max-age=86400',
             'X-Robots-Tag': 'noindex, nofollow'
         }
+    });
+}
+
+/**
+ * 处理旧版脚本的升级提示页 (/OUTDATED_SCRIPT*)
+ * 旧版脚本请求被 302 重定向到此后返回 410，报错 URL 中自带升级提示；
+ * 用户用浏览器打开该路径时可看到完整说明 (需在 CF 安全规则中放行此前缀)
+ * @param {Request} request - 请求对象
+ * @returns {Response}
+ */
+export function handleOutdated(request) {
+    const userAgent = request.headers.get('User-Agent') || '(空)';
+    const host = new URL(request.url).hostname;
+    const isHtml = (request.headers.get('Accept') || '').includes('text/html');
+
+    const downloadCmd = `curl -O https://${host}/hf_downloader.py`;
+    const commonHeaders = { 'Cache-Control': 'no-store' };
+
+    if (isHtml) {
+        const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>脚本已停用</title></head>
+<body style="font-family:sans-serif;max-width:640px;margin:60px auto;padding:0 20px;line-height:1.7">
+<h1>⚠️ 旧版下载脚本已停用</h1>
+<p>您正在使用的 <code>hf_downloader.py</code> 版本过旧，其请求已被服务端拒绝。</p>
+<p>请重新下载最新版脚本：</p>
+<pre style="background:#2d2d2d;color:#f8f8f2;padding:14px;border-radius:8px">${downloadCmd}</pre>
+<p>或访问 <a href="https://${host}/">首页</a> 查看使用说明。</p>
+<hr><p style="color:#999;font-size:13px">当前要求的 User-Agent: <code>${SCRIPT_USER_AGENT}</code><br>您发送的 User-Agent: <code>${userAgent}</code></p>
+</body></html>`;
+        return new Response(html, {
+            status: 410,
+            headers: { ...commonHeaders, 'Content-Type': 'text/html; charset=utf-8' }
+        });
+    }
+
+    const text =
+        '旧版下载脚本已停用，请重新下载最新版脚本:\n' +
+        `  ${downloadCmd}\n\n` +
+        `您发送的 User-Agent: ${userAgent}\n` +
+        `当前要求的 User-Agent: ${SCRIPT_USER_AGENT}\n`;
+    return new Response(text, {
+        status: 410,
+        headers: { ...commonHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
     });
 }
 
