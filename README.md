@@ -200,33 +200,19 @@ export const REDIRECT_PREFIX = 'redirect_to_';
 
 ### 下载器 User-Agent
 
-`hf_downloader.py` 发出的所有请求（API、下载、教育网检测）统一携带专用 UA：
+`hf_downloader.py` 的 API 与下载请求自带 UA（session 级别，无需额外配置）：
 
 ```
-HF-Downloader/2.0 (+https://github.com/AinzRimuru/HuggingfaceProxy)
+HF-Downloader/1.0 (Python)
 ```
 
 如需阻止其他脚本滥用代理，可在 Cloudflare 安全规则（域名 → Security → Security Rules → 自定义规则）中按 UA 前缀放行，动作设为 Block：
 
 ```
-(not starts_with(http.user_agent, "HF-Downloader/") and not http.request.uri.path in {"/" "/robots.txt" "/hf_downloader.py" "/version"} and not starts_with(http.request.uri.path, "/OUTDATED_SCRIPT"))
+(not starts_with(http.user_agent, "HF-Downloader/") and not http.request.uri.path in {"/" "/robots.txt" "/hf_downloader.py" "/version"})
 ```
 
-效果：首页、robots.txt、脚本下载、版本接口对所有客户端开放；其余路径仅允许携带 `HF-Downloader/` 前缀 UA 的请求（新旧脚本都放行，版本校验由 Worker 完成）。UA 可伪造，仅作基础过滤。
-
-### 旧版脚本升级提示
-
-边缘规则只按前缀放行，版本校验在 Worker 内完成（`src/config.js` 的 `SCRIPT_USER_AGENT`）：
-
-- UA 为 `HF-Downloader/` 前缀但不等于当前版本 → 302 重定向到 `/OUTDATED_SCRIPT/re-download-hf_downloader.py` 并返回 410
-- 旧脚本报错行会打印完整 URL（`requests` 的 `raise_for_status` 只输出状态码和 URL），提示直接可见：
-
-```
-410 Client Error: Gone for url: https://your-proxy.com/OUTDATED_SCRIPT/re-download-hf_downloader.py
-```
-
-- `/OUTDATED_SCRIPT` 前缀需在安全规则中放行（见上式），用户用浏览器打开可看到完整的升级说明页
-- 升级脚本 UA 版本时，需同步修改 `src/scripts/hf_downloader.py` 的 `USER_AGENT` 与 `src/config.js` 的 `SCRIPT_USER_AGENT`
+效果：首页、robots.txt、脚本下载、版本接口对所有客户端开放；其余路径仅允许携带 `HF-Downloader/` 前缀 UA 的请求。UA 可伪造，仅作基础过滤。
 
 ## Star History
 

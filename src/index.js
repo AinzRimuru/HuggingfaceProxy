@@ -15,9 +15,9 @@
  *   - false 或未设置: 不限制
  */
 
-import { handleHome, handleDownloaderScript, handleProxy, handleVersion, handleRobots, handleOutdated } from './handlers.js';
-import { validateBrowserAccess, checkScriptVersion } from './utils.js';
-import { REDIRECT_PREFIX, OUTDATED_PATH_PREFIX } from './config.js';
+import { handleHome, handleDownloaderScript, handleProxy, handleVersion, handleRobots } from './handlers.js';
+import { validateBrowserAccess } from './utils.js';
+import { REDIRECT_PREFIX } from './config.js';
 
 export default {
     async fetch(request, env, ctx) {
@@ -30,12 +30,6 @@ export default {
         const accessCheck = validateBrowserAccess(request, pathname, restrictBrowserAccess);
         if (accessCheck) {
             return accessCheck;
-        }
-
-        // 下载脚本版本网关: 旧版脚本重定向到自解释的 OUTDATED 路径 (报错行自带升级提示)
-        const versionCheck = checkScriptVersion(request, pathname);
-        if (versionCheck) {
-            return versionCheck;
         }
 
         // 路由分发
@@ -55,10 +49,6 @@ export default {
             // robots.txt (反爬：仅允许首页抓取，其余禁止)
             case pathname === '/robots.txt':
                 return handleRobots();
-
-            // 旧版脚本升级提示页
-            case pathname.startsWith(OUTDATED_PATH_PREFIX):
-                return handleOutdated(request);
 
             // 代理请求
             default: {

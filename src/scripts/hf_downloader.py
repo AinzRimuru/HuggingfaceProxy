@@ -38,10 +38,6 @@ except ImportError:
 # 注意: 通过 https://xx.xxx.com/hf_downloader.py 下载时，
 # Worker 会自动将下面的域名替换为请求的域名
 PROXY_DOMAIN = "{{PROXY_DOMAIN}}"  # 你的代理域名
-USER_AGENT = "HF-Downloader/2.0 (+https://github.com/AinzRimuru/HuggingfaceProxy)"
-                               # 统一 UA: 本脚本发出的所有请求均携带;
-                               # Cloudflare 安全规则按前缀 "HF-Downloader/" 放行,
-                               # 修改此值需同步更新规则表达式 (见 README 配置说明)
 MAX_RETRIES = 3                    # 最大重试次数
 INITIAL_CHUNK_SIZE = 64 * 1024 * 1024  # 64MB 初始每块
 MAX_CHUNK_SIZE = 512 * 1024 * 1024     # 块大小上限 (429 退避时翻倍不会超过此值)
@@ -58,8 +54,7 @@ def check_cernet() -> bool:
     """检查是否为教育网环境"""
     try:
         #设置较短超时，避免阻塞
-        resp = requests.get("http://ip-api.com/json/?fields=isp,org", timeout=3,
-                            headers={"User-Agent": USER_AGENT})
+        resp = requests.get("http://ip-api.com/json/?fields=isp,org", timeout=3)
         if resp.ok:
             data = resp.json()
             isp = data.get("isp", "").lower()
@@ -252,7 +247,7 @@ class HFDownloader:
         # Session 配置
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": USER_AGENT
+            "User-Agent": "HF-Downloader/1.0 (Python)"
         })
         if self.token:
             self.session.headers["Authorization"] = f"Bearer {self.token}"
